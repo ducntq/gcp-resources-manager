@@ -6,7 +6,7 @@ There is no user authentication on the portal itself — run it on a trusted net
 
 ## Why I build this project?
 
-I need this project to manage my own GCP infrastructure without logging into GCP. My need is simple: just need to manage couple of Compute Engine instances, no need to SSH (maybe will change later). This project is intended to run on my homelab server and in my private, so I don't really need authentication. So please be aware of this limitation.
+I need this project to manage my own GCP infrastructure without logging into GCP. My need is simple: just need to manage couple of Compute Engine instances, no need to SSH (maybe will change later). This project is intended to run on my homelab server and in my private network (with proper firewall), so I don't really need authentication. So please be aware of this limitation.
 
 ## Features
 
