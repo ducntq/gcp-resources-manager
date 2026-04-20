@@ -4,6 +4,10 @@ A lightweight web portal for managing Google Cloud **Compute Engine VM instances
 
 There is no user authentication on the portal itself — run it on a trusted network only.
 
+## Why I build this project?
+
+I need this project to manage my own GCP infrastructure without logging into GCP. My need is simple: just need to manage couple of Compute Engine instances, no need to SSH (maybe will change later). This project is intended to run on my homelab server and in my private, so I don't really need authentication. So please be aware of this limitation.
+
 ## Features
 
 - Switch between multiple GCP projects from a single dropdown
