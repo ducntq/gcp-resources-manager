@@ -1,3 +1,4 @@
+using GcpResourcesManager.Api.Models;
 using GcpResourcesManager.Api.Services;
 using Google.Apis.Compute.v1.Data;
 
@@ -79,6 +80,69 @@ public static class VmEndpoints
             } while (!string.IsNullOrEmpty(pageToken));
 
             return Results.Ok(matches);
+        });
+
+        g.MapPatch("/{zone}/{name}", async (string projectId, string zone, string name, VmPatchInput input, GcpClientFactory factory, CancellationToken ct) =>
+        {
+            var svc = factory.Get(projectId);
+            var inst = await svc.Instances.Get(projectId, zone, name).ExecuteAsync(ct);
+            var ops = new List<object>();
+
+            if (input.Labels is not null)
+            {
+                var req = new InstancesSetLabelsRequest
+                {
+                    Labels = input.Labels,
+                    LabelFingerprint = inst.LabelFingerprint,
+                };
+                var op = await svc.Instances.SetLabels(req, projectId, zone, name).ExecuteAsync(ct);
+                ops.Add(OperationEndpoints.Project(op));
+            }
+
+            if (input.Tags is not null)
+            {
+                var tagsReq = new Tags
+                {
+                    Items = input.Tags.ToList(),
+                    Fingerprint = inst.Tags?.Fingerprint,
+                };
+                var op = await svc.Instances.SetTags(tagsReq, projectId, zone, name).ExecuteAsync(ct);
+                ops.Add(OperationEndpoints.Project(op));
+            }
+
+            if (input.Metadata is not null)
+            {
+                var md = new Metadata
+                {
+                    Items = input.Metadata
+                        .Where(m => !string.IsNullOrEmpty(m.Key))
+                        .Select(m => new Metadata.ItemsData { Key = m.Key, Value = m.Value })
+                        .ToList(),
+                    Fingerprint = inst.Metadata?.Fingerprint,
+                };
+                var op = await svc.Instances.SetMetadata(md, projectId, zone, name).ExecuteAsync(ct);
+                ops.Add(OperationEndpoints.Project(op));
+            }
+
+            if (input.DeletionProtection is bool dp)
+            {
+                var req = svc.Instances.SetDeletionProtection(projectId, zone, name);
+                req.DeletionProtection = dp;
+                var op = await req.ExecuteAsync(ct);
+                ops.Add(OperationEndpoints.Project(op));
+            }
+
+            if (!string.IsNullOrWhiteSpace(input.MachineType))
+            {
+                var req = new InstancesSetMachineTypeRequest
+                {
+                    MachineType = NormalizeMachineType(input.MachineType, zone),
+                };
+                var op = await svc.Instances.SetMachineType(req, projectId, zone, name).ExecuteAsync(ct);
+                ops.Add(OperationEndpoints.Project(op));
+            }
+
+            return Results.Ok(ops);
         });
 
         g.MapPost("/{zone}/{name}/start", async (string projectId, string zone, string name, GcpClientFactory factory, CancellationToken ct) =>
@@ -221,4 +285,13 @@ public static class VmEndpoints
 
     private static string? ShortName(string? url) =>
         string.IsNullOrEmpty(url) ? url : url[(url.LastIndexOf('/') + 1)..];
+
+    private static string NormalizeMachineType(string value, string zone)
+    {
+        var v = value.Trim();
+        if (v.StartsWith("http", StringComparison.OrdinalIgnoreCase)) return v;
+        if (v.StartsWith("projects/", StringComparison.OrdinalIgnoreCase)) return v;
+        if (v.StartsWith("zones/", StringComparison.OrdinalIgnoreCase)) return v;
+        return $"zones/{zone}/machineTypes/{v}";
+    }
 }

@@ -64,6 +64,14 @@ export type VmShielded = {
 
 export type VmMetadataItem = { key: string; value?: string };
 
+export type VmPatchInput = {
+  labels?: Record<string, string>;
+  tags?: string[];
+  metadata?: VmMetadataItem[];
+  deletionProtection?: boolean;
+  machineType?: string;
+};
+
 export type VmDetail = Vm & {
   description?: string;
   statusMessage?: string;
@@ -88,6 +96,8 @@ export const vmsApi = {
     api.get<VmDetail>(`${base(projectId)}/${zone}/${name}`),
   relatedFirewalls: (projectId: string, zone: string, name: string) =>
     api.get<Firewall[]>(`${base(projectId)}/${zone}/${name}/firewalls`),
+  patch: (projectId: string, zone: string, name: string, input: VmPatchInput) =>
+    api.patch<Operation[]>(`${base(projectId)}/${zone}/${name}`, input),
   start: (projectId: string, zone: string, name: string) =>
     api.post<Operation>(`${base(projectId)}/${zone}/${name}/start`),
   stop: (projectId: string, zone: string, name: string) =>

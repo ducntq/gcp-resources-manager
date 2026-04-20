@@ -25,6 +25,7 @@ api.MapProjectEndpoints();
 api.MapVmEndpoints();
 api.MapFirewallEndpoints();
 api.MapOperationEndpoints();
+api.MapMachineTypeEndpoints();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
