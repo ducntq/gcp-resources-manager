@@ -1,0 +1,10 @@
+services:
+  portal:
+    build: .
+    image: gcp-resources-manager:local
+    container_name: gcp-resources-manager
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keys:/app/keys
+    restart: unless-stopped
