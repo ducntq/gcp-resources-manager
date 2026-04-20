@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { vmsApi, type Vm } from "../api/vms";
 import { waitForOperation } from "../api/operations";
 import { useActiveProject } from "../hooks/useActiveProject";
@@ -132,7 +133,14 @@ export function VmsPage() {
               const running = v.status === "RUNNING";
               return (
                 <tr key={vmKey(v)} className="border-t border-border">
-                  <td className="px-3 py-2 font-mono">{v.name}</td>
+                  <td className="px-3 py-2 font-mono">
+                    <Link
+                      to={`/vms/${encodeURIComponent(v.zone)}/${encodeURIComponent(v.name)}`}
+                      className="text-blue-300 hover:text-blue-200 hover:underline"
+                    >
+                      {v.name}
+                    </Link>
+                  </td>
                   <td className="px-3 py-2 text-gray-300">{v.zone}</td>
                   <td className="px-3 py-2 text-gray-300">{v.machineType}</td>
                   <td className="px-3 py-2">
