@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { Firewall } from "./firewalls";
 import type { Operation } from "./operations";
 
 export type Vm = {
@@ -85,6 +86,8 @@ export const vmsApi = {
   list: (projectId: string) => api.get<Vm[]>(base(projectId)),
   get: (projectId: string, zone: string, name: string) =>
     api.get<VmDetail>(`${base(projectId)}/${zone}/${name}`),
+  relatedFirewalls: (projectId: string, zone: string, name: string) =>
+    api.get<Firewall[]>(`${base(projectId)}/${zone}/${name}/firewalls`),
   start: (projectId: string, zone: string, name: string) =>
     api.post<Operation>(`${base(projectId)}/${zone}/${name}/start`),
   stop: (projectId: string, zone: string, name: string) =>

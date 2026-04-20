@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { vmsApi } from "../api/vms";
 import { useActiveProject } from "../hooks/useActiveProject";
 import { VmDetailView } from "../components/VmDetailView";
+import { RelatedFirewalls } from "../components/RelatedFirewalls";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
 export function VmDetailPage() {
@@ -48,7 +49,12 @@ export function VmDetailPage() {
           {(error as Error).message}
         </div>
       )}
-      {data && <VmDetailView vm={data} />}
+      {data && (
+        <div className="space-y-5">
+          <VmDetailView vm={data} />
+          <RelatedFirewalls projectId={projectId} zone={zone!} name={name!} />
+        </div>
+      )}
     </div>
   );
 }

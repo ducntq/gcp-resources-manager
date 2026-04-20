@@ -6,7 +6,8 @@ import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { Field, TextInput } from "../components/ui/Field";
 import { Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 const emptyInput: FirewallInput = {
   name: "",
@@ -22,6 +23,7 @@ const emptyInput: FirewallInput = {
 export function FirewallsPage() {
   const [projectId] = useActiveProject();
   const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [editing, setEditing] = useState<
     { mode: "create" } | { mode: "edit"; original: Firewall } | null
   >(null);
@@ -33,6 +35,21 @@ export function FirewallsPage() {
     enabled: !!projectId,
   });
 
+  const editParam = searchParams.get("edit");
+  useEffect(() => {
+    if (!editParam) return;
+    const rule = rules.find((r) => r.name === editParam);
+    if (rule) setEditing({ mode: "edit", original: rule });
+  }, [editParam, rules]);
+
+  const closeEditor = () => {
+    setEditing(null);
+    if (searchParams.has("edit")) {
+      searchParams.delete("edit");
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
+
   const invalidate = () =>
     qc.invalidateQueries({ queryKey: ["firewalls", projectId] });
 
@@ -43,7 +60,7 @@ export function FirewallsPage() {
     },
     onSuccess: () => {
       invalidate();
-      setEditing(null);
+      closeEditor();
     },
   });
   const update = useMutation({
@@ -53,7 +70,7 @@ export function FirewallsPage() {
     },
     onSuccess: () => {
       invalidate();
-      setEditing(null);
+      closeEditor();
     },
   });
   const remove = useMutation({
@@ -187,7 +204,15 @@ export function FirewallsPage() {
                     <Button
                       size="sm"
                       disabled={isDeleting}
-                      onClick={() => setEditing({ mode: "edit", original: r })}
+                      onClick={() => {
+                        setSearchParams(
+                          (p) => {
+                            p.set("edit", r.name);
+                            return p;
+                          },
+                          { replace: true },
+                        );
+                      }}
                     >
                       <Pencil size={12} />
                     </Button>
@@ -219,7 +244,7 @@ export function FirewallsPage() {
               : toInput(editing.original)
           }
           isEdit={editing.mode === "edit"}
-          onClose={() => setEditing(null)}
+          onClose={closeEditor}
           onSubmit={(input) => {
             if (editing.mode === "create") create.mutate(input);
             else update.mutate({ name: editing.original.name, input });

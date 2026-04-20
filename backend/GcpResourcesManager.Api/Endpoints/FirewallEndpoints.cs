@@ -85,7 +85,7 @@ public static class FirewallEndpoints
         }).ToList(),
     };
 
-    private static object Project(Firewall f) => new
+    public static object Project(Firewall f) => new
     {
         name = f.Name,
         description = f.Description,

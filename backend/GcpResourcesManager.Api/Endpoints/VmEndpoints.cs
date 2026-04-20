@@ -43,6 +43,44 @@ public static class VmEndpoints
             return Results.Ok(ProjectDetail(inst, $"zones/{zone}"));
         });
 
+        g.MapGet("/{zone}/{name}/firewalls", async (string projectId, string zone, string name, GcpClientFactory factory, CancellationToken ct) =>
+        {
+            var svc = factory.Get(projectId);
+            var inst = await svc.Instances.Get(projectId, zone, name).ExecuteAsync(ct);
+
+            var networks = (inst.NetworkInterfaces ?? new List<NetworkInterface>())
+                .Select(n => ShortName(n.Network))
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToHashSet();
+            var tags = new HashSet<string>(inst.Tags?.Items ?? new List<string>());
+            var saEmails = new HashSet<string>(
+                (inst.ServiceAccounts ?? new List<ServiceAccount>())
+                    .Select(s => s.Email)
+                    .Where(e => !string.IsNullOrEmpty(e))!);
+
+            var req = svc.Firewalls.List(projectId);
+            req.MaxResults = 500;
+
+            var matches = new List<object>();
+            string? pageToken = null;
+            do
+            {
+                req.PageToken = pageToken;
+                var page = await req.ExecuteAsync(ct);
+                if (page.Items is not null)
+                {
+                    foreach (var fw in page.Items)
+                    {
+                        if (AppliesTo(fw, networks, tags, saEmails))
+                            matches.Add(FirewallEndpoints.Project(fw));
+                    }
+                }
+                pageToken = page.NextPageToken;
+            } while (!string.IsNullOrEmpty(pageToken));
+
+            return Results.Ok(matches);
+        });
+
         g.MapPost("/{zone}/{name}/start", async (string projectId, string zone, string name, GcpClientFactory factory, CancellationToken ct) =>
         {
             var op = await factory.Get(projectId).Instances.Start(projectId, zone, name).ExecuteAsync(ct);
@@ -161,6 +199,24 @@ public static class VmEndpoints
                 .Where(m => m.Key is not null)
                 .Select(m => new { key = m.Key, value = m.Value }),
         };
+    }
+
+    private static bool AppliesTo(
+        Firewall fw,
+        HashSet<string?> vmNetworks,
+        HashSet<string> vmTags,
+        HashSet<string> vmSaEmails)
+    {
+        var fwNetwork = ShortName(fw.Network);
+        if (!vmNetworks.Contains(fwNetwork)) return false;
+
+        var hasTagTargets = fw.TargetTags is { Count: > 0 };
+        var hasSaTargets = fw.TargetServiceAccounts is { Count: > 0 };
+
+        if (!hasTagTargets && !hasSaTargets) return true;
+        if (hasTagTargets && fw.TargetTags!.Any(vmTags.Contains)) return true;
+        if (hasSaTargets && fw.TargetServiceAccounts!.Any(vmSaEmails.Contains)) return true;
+        return false;
     }
 
     private static string? ShortName(string? url) =>
