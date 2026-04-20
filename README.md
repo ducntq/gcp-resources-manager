@@ -23,7 +23,7 @@ I need this project to manage my own GCP infrastructure without logging into GCP
 | Backend | ASP.NET Core 10 minimal API |
 | GCP SDK | `Google.Apis.Compute.v1` |
 | Frontend | React 19 + Vite + TypeScript + TanStack Query + Tailwind |
-| Delivery | Single Alpine-based Docker image (~200 MB); backend serves the SPA as static files |
+| Delivery | Single chiseled distroless Docker image (~190 MB, linux/amd64 + linux/arm64); backend serves the SPA as static files |
 
 ## Quick start (Docker)
 
@@ -38,6 +38,26 @@ The `./keys` directory on the host is mounted into the container at `/app/keys`.
 - upload keys through the **Upload key** button on the Projects page.
 
 Each file is saved as `{project_id}.json`.
+
+> **Linux host note** — the runtime is a chiseled distroless image that runs as the non-root `app` user (UID 1654). If the container can't write to `./keys` on Linux, run `sudo chown -R 1654:1654 ./keys` once. On macOS/Docker Desktop this is handled automatically.
+
+### Multi-arch build
+
+The Dockerfile builds natively on any host architecture and produces portable IL, so a single `docker build` makes an image for the host arch. To produce a multi-arch manifest (amd64 + arm64) push-ready to a registry:
+
+```bash
+docker buildx create --use   # once
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -t <registry>/gcp-resources-manager:latest \
+  --push .
+```
+
+For a local single-arch test build without a registry:
+
+```bash
+docker buildx build --platform linux/arm64 -t gcp-resources-manager:arm64 --load .
+```
 
 ## Local development
 
