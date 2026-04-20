@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { Operation } from "./operations";
 
 export type Vm = {
   name: string;
@@ -20,11 +21,11 @@ const base = (p: string) => `/api/projects/${encodeURIComponent(p)}/instances`;
 export const vmsApi = {
   list: (projectId: string) => api.get<Vm[]>(base(projectId)),
   start: (projectId: string, zone: string, name: string) =>
-    api.post<unknown>(`${base(projectId)}/${zone}/${name}/start`),
+    api.post<Operation>(`${base(projectId)}/${zone}/${name}/start`),
   stop: (projectId: string, zone: string, name: string) =>
-    api.post<unknown>(`${base(projectId)}/${zone}/${name}/stop`),
+    api.post<Operation>(`${base(projectId)}/${zone}/${name}/stop`),
   reset: (projectId: string, zone: string, name: string) =>
-    api.post<unknown>(`${base(projectId)}/${zone}/${name}/reset`),
+    api.post<Operation>(`${base(projectId)}/${zone}/${name}/reset`),
   remove: (projectId: string, zone: string, name: string) =>
-    api.del<unknown>(`${base(projectId)}/${zone}/${name}`),
+    api.del<Operation>(`${base(projectId)}/${zone}/${name}`),
 };

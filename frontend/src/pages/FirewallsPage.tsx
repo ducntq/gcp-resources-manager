@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { firewallsApi, type Firewall, type FirewallInput } from "../api/firewalls";
+import { waitForOperation } from "../api/operations";
 import { useActiveProject } from "../hooks/useActiveProject";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
 import { Field, TextInput } from "../components/ui/Field";
-import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 const emptyInput: FirewallInput = {
@@ -24,6 +25,7 @@ export function FirewallsPage() {
   const [editing, setEditing] = useState<
     { mode: "create" } | { mode: "edit"; original: Firewall } | null
   >(null);
+  const [deleting, setDeleting] = useState<Set<string>>(new Set());
 
   const { data: rules = [], isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["firewalls", projectId],
@@ -35,23 +37,40 @@ export function FirewallsPage() {
     qc.invalidateQueries({ queryKey: ["firewalls", projectId] });
 
   const create = useMutation({
-    mutationFn: (input: FirewallInput) => firewallsApi.create(projectId!, input),
+    mutationFn: async (input: FirewallInput) => {
+      const op = await firewallsApi.create(projectId!, input);
+      await waitForOperation(projectId!, op);
+    },
     onSuccess: () => {
       invalidate();
       setEditing(null);
     },
   });
   const update = useMutation({
-    mutationFn: ({ name, input }: { name: string; input: FirewallInput }) =>
-      firewallsApi.update(projectId!, name, input),
+    mutationFn: async ({ name, input }: { name: string; input: FirewallInput }) => {
+      const op = await firewallsApi.update(projectId!, name, input);
+      await waitForOperation(projectId!, op);
+    },
     onSuccess: () => {
       invalidate();
       setEditing(null);
     },
   });
   const remove = useMutation({
-    mutationFn: (name: string) => firewallsApi.remove(projectId!, name),
-    onSuccess: invalidate,
+    mutationFn: async (name: string) => {
+      setDeleting((d) => new Set(d).add(name));
+      try {
+        const op = await firewallsApi.remove(projectId!, name);
+        await waitForOperation(projectId!, op);
+      } finally {
+        setDeleting((d) => {
+          const n = new Set(d);
+          n.delete(name);
+          return n;
+        });
+        invalidate();
+      }
+    },
   });
 
   if (!projectId)
@@ -87,6 +106,11 @@ export function FirewallsPage() {
           {(error as Error).message}
         </div>
       )}
+      {remove.error && (
+        <div className="mb-3 px-3 py-2 rounded border border-red-600/40 bg-red-600/10 text-sm text-red-200">
+          {(remove.error as Error).message}
+        </div>
+      )}
 
       <div className="border border-border rounded bg-panel overflow-hidden">
         <table className="w-full text-sm">
@@ -116,10 +140,17 @@ export function FirewallsPage() {
                 </td>
               </tr>
             )}
-            {rules.map((r) => (
+            {rules.map((r) => {
+              const isDeleting = deleting.has(r.name);
+              return (
               <tr key={r.name} className="border-t border-border align-top">
                 <td className="px-3 py-2 font-mono">
-                  {r.name}
+                  <span className="inline-flex items-center gap-2">
+                    {r.name}
+                    {isDeleting && (
+                      <Loader2 size={12} className="animate-spin text-gray-400" />
+                    )}
+                  </span>
                   {r.disabled && (
                     <span className="ml-2 text-[10px] text-yellow-300">
                       disabled
@@ -155,6 +186,7 @@ export function FirewallsPage() {
                   <div className="flex gap-1">
                     <Button
                       size="sm"
+                      disabled={isDeleting}
                       onClick={() => setEditing({ mode: "edit", original: r })}
                     >
                       <Pencil size={12} />
@@ -162,6 +194,7 @@ export function FirewallsPage() {
                     <Button
                       size="sm"
                       variant="danger"
+                      disabled={isDeleting}
                       onClick={() => {
                         if (confirm(`Delete firewall rule ${r.name}?`))
                           remove.mutate(r.name);
@@ -172,7 +205,8 @@ export function FirewallsPage() {
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

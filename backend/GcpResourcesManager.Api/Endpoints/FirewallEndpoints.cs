@@ -40,20 +40,20 @@ public static class FirewallEndpoints
         {
             var body = ToFirewall(input, projectId);
             var op = await factory.Get(projectId).Firewalls.Insert(body, projectId).ExecuteAsync(ct);
-            return Results.Accepted(value: ProjectOp(op));
+            return Results.Accepted(value: OperationEndpoints.Project(op));
         });
 
         g.MapPut("/{name}", async (string projectId, string name, FirewallRuleInput input, GcpClientFactory factory, CancellationToken ct) =>
         {
             var body = ToFirewall(input with { Name = name }, projectId);
             var op = await factory.Get(projectId).Firewalls.Patch(body, projectId, name).ExecuteAsync(ct);
-            return Results.Accepted(value: ProjectOp(op));
+            return Results.Accepted(value: OperationEndpoints.Project(op));
         });
 
         g.MapDelete("/{name}", async (string projectId, string name, GcpClientFactory factory, CancellationToken ct) =>
         {
             var op = await factory.Get(projectId).Firewalls.Delete(projectId, name).ExecuteAsync(ct);
-            return Results.Accepted(value: ProjectOp(op));
+            return Results.Accepted(value: OperationEndpoints.Project(op));
         });
 
         return api;
@@ -102,15 +102,6 @@ public static class FirewallEndpoints
         allowed = f.Allowed?.Select(a => new { ipProtocol = a.IPProtocol, ports = a.Ports }),
         denied = f.Denied?.Select(a => new { ipProtocol = a.IPProtocol, ports = a.Ports }),
         creationTimestamp = f.CreationTimestamp,
-    };
-
-    private static object ProjectOp(Operation op) => new
-    {
-        id = op.Id?.ToString(),
-        name = op.Name,
-        operationType = op.OperationType,
-        status = op.Status,
-        targetLink = op.TargetLink,
     };
 
     private static string? ShortName(string? url) =>

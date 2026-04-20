@@ -46,25 +46,25 @@ public static class VmEndpoints
         g.MapPost("/{zone}/{name}/start", async (string projectId, string zone, string name, GcpClientFactory factory, CancellationToken ct) =>
         {
             var op = await factory.Get(projectId).Instances.Start(projectId, zone, name).ExecuteAsync(ct);
-            return Results.Accepted(value: ProjectOp(op));
+            return Results.Accepted(value: OperationEndpoints.Project(op));
         });
 
         g.MapPost("/{zone}/{name}/stop", async (string projectId, string zone, string name, GcpClientFactory factory, CancellationToken ct) =>
         {
             var op = await factory.Get(projectId).Instances.Stop(projectId, zone, name).ExecuteAsync(ct);
-            return Results.Accepted(value: ProjectOp(op));
+            return Results.Accepted(value: OperationEndpoints.Project(op));
         });
 
         g.MapPost("/{zone}/{name}/reset", async (string projectId, string zone, string name, GcpClientFactory factory, CancellationToken ct) =>
         {
             var op = await factory.Get(projectId).Instances.Reset(projectId, zone, name).ExecuteAsync(ct);
-            return Results.Accepted(value: ProjectOp(op));
+            return Results.Accepted(value: OperationEndpoints.Project(op));
         });
 
         g.MapDelete("/{zone}/{name}", async (string projectId, string zone, string name, GcpClientFactory factory, CancellationToken ct) =>
         {
             var op = await factory.Get(projectId).Instances.Delete(projectId, zone, name).ExecuteAsync(ct);
-            return Results.Accepted(value: ProjectOp(op));
+            return Results.Accepted(value: OperationEndpoints.Project(op));
         });
 
         return api;
@@ -91,15 +91,6 @@ public static class VmEndpoints
             tags = i.Tags?.Items,
         };
     }
-
-    private static object ProjectOp(Operation op) => new
-    {
-        id = op.Id?.ToString(),
-        name = op.Name,
-        operationType = op.OperationType,
-        status = op.Status,
-        targetLink = op.TargetLink,
-    };
 
     private static string? ShortName(string? url) =>
         string.IsNullOrEmpty(url) ? url : url[(url.LastIndexOf('/') + 1)..];

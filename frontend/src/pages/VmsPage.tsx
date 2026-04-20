@@ -1,13 +1,26 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { vmsApi, type Vm } from "../api/vms";
+import { waitForOperation } from "../api/operations";
 import { useActiveProject } from "../hooks/useActiveProject";
 import { Button } from "../components/ui/Button";
-import { Play, RefreshCw, RotateCcw, Square, Trash2 } from "lucide-react";
+import {
+  Loader2,
+  Play,
+  RefreshCw,
+  RotateCcw,
+  Square,
+  Trash2,
+} from "lucide-react";
 import { clsx } from "clsx";
+import { useState } from "react";
+
+const vmKey = (v: Vm) => `${v.zone}/${v.name}`;
 
 export function VmsPage() {
   const [projectId] = useActiveProject();
   const qc = useQueryClient();
+  const [pending, setPending] = useState<Set<string>>(new Set());
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const { data: vms = [], isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["vms", projectId],
@@ -15,25 +28,42 @@ export function VmsPage() {
     enabled: !!projectId,
   });
 
+  const mark = (v: Vm) =>
+    setPending((p) => {
+      const n = new Set(p);
+      n.add(vmKey(v));
+      return n;
+    });
+  const unmark = (v: Vm) =>
+    setPending((p) => {
+      const n = new Set(p);
+      n.delete(vmKey(v));
+      return n;
+    });
+
   const invalidate = () =>
     qc.invalidateQueries({ queryKey: ["vms", projectId] });
 
-  const start = useMutation({
-    mutationFn: (v: Vm) => vmsApi.start(projectId!, v.zone, v.name),
-    onSuccess: invalidate,
-  });
-  const stop = useMutation({
-    mutationFn: (v: Vm) => vmsApi.stop(projectId!, v.zone, v.name),
-    onSuccess: invalidate,
-  });
-  const reset = useMutation({
-    mutationFn: (v: Vm) => vmsApi.reset(projectId!, v.zone, v.name),
-    onSuccess: invalidate,
-  });
-  const remove = useMutation({
-    mutationFn: (v: Vm) => vmsApi.remove(projectId!, v.zone, v.name),
-    onSuccess: invalidate,
-  });
+  const makeAction =
+    (verb: (p: string, zone: string, name: string) => ReturnType<typeof vmsApi.start>) =>
+    async (v: Vm) => {
+      mark(v);
+      setActionError(null);
+      try {
+        const op = await verb(projectId!, v.zone, v.name);
+        await waitForOperation(projectId!, op);
+      } finally {
+        unmark(v);
+        invalidate();
+      }
+    };
+
+  const onError = (e: Error) => setActionError(e.message);
+
+  const start = useMutation({ mutationFn: makeAction(vmsApi.start), onError });
+  const stop = useMutation({ mutationFn: makeAction(vmsApi.stop), onError });
+  const reset = useMutation({ mutationFn: makeAction(vmsApi.reset), onError });
+  const remove = useMutation({ mutationFn: makeAction(vmsApi.remove), onError });
 
   if (!projectId)
     return (
@@ -61,6 +91,11 @@ export function VmsPage() {
       {error && (
         <div className="mb-3 px-3 py-2 rounded border border-red-600/40 bg-red-600/10 text-sm text-red-200">
           {(error as Error).message}
+        </div>
+      )}
+      {actionError && (
+        <div className="mb-3 px-3 py-2 rounded border border-red-600/40 bg-red-600/10 text-sm text-red-200">
+          {actionError}
         </div>
       )}
 
@@ -93,19 +128,23 @@ export function VmsPage() {
               </tr>
             )}
             {vms.map((v) => {
+              const isBusy = pending.has(vmKey(v));
               const running = v.status === "RUNNING";
-              const busy =
-                start.isPending ||
-                stop.isPending ||
-                reset.isPending ||
-                remove.isPending;
               return (
-                <tr key={`${v.zone}/${v.name}`} className="border-t border-border">
+                <tr key={vmKey(v)} className="border-t border-border">
                   <td className="px-3 py-2 font-mono">{v.name}</td>
                   <td className="px-3 py-2 text-gray-300">{v.zone}</td>
                   <td className="px-3 py-2 text-gray-300">{v.machineType}</td>
                   <td className="px-3 py-2">
-                    <StatusPill status={v.status} />
+                    <div className="flex items-center gap-2">
+                      <StatusPill status={v.status} />
+                      {isBusy && (
+                        <Loader2
+                          size={12}
+                          className="animate-spin text-gray-400"
+                        />
+                      )}
+                    </div>
                   </td>
                   <td className="px-3 py-2 font-mono text-gray-300">
                     {v.internalIps?.join(", ") ?? "—"}
@@ -118,7 +157,7 @@ export function VmsPage() {
                       <Button
                         size="sm"
                         variant="secondary"
-                        disabled={busy || running}
+                        disabled={isBusy || running}
                         onClick={() => start.mutate(v)}
                       >
                         <Play size={12} /> Start
@@ -126,7 +165,7 @@ export function VmsPage() {
                       <Button
                         size="sm"
                         variant="secondary"
-                        disabled={busy || !running}
+                        disabled={isBusy || !running}
                         onClick={() => stop.mutate(v)}
                       >
                         <Square size={12} /> Stop
@@ -134,7 +173,7 @@ export function VmsPage() {
                       <Button
                         size="sm"
                         variant="secondary"
-                        disabled={busy || !running}
+                        disabled={isBusy || !running}
                         onClick={() => reset.mutate(v)}
                       >
                         <RotateCcw size={12} />
@@ -142,7 +181,7 @@ export function VmsPage() {
                       <Button
                         size="sm"
                         variant="danger"
-                        disabled={busy}
+                        disabled={isBusy}
                         onClick={() => {
                           if (confirm(`Delete instance ${v.name}?`))
                             remove.mutate(v);

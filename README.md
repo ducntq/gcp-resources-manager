@@ -128,6 +128,5 @@ All endpoints return JSON. Project ID is taken from the path; the matching key f
 
 ## Limitations
 
-- No long-running operation tracking — `start` / `stop` / `delete` return immediately with the GCP `Operation` payload; refresh the list to see the resulting state.
 - VM creation is not implemented. Firewall rules support create / patch / delete; VMs are read + lifecycle only.
 - No multi-user accounts, audit log, or RBAC.

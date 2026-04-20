@@ -1,4 +1,5 @@
 import { api } from "./client";
+import type { Operation } from "./operations";
 
 export type FirewallEntry = { ipProtocol?: string; ports?: string[] };
 
@@ -29,9 +30,9 @@ export const firewallsApi = {
   get: (projectId: string, name: string) =>
     api.get<Firewall>(`${base(projectId)}/${name}`),
   create: (projectId: string, input: FirewallInput) =>
-    api.post<unknown>(base(projectId), input),
+    api.post<Operation>(base(projectId), input),
   update: (projectId: string, name: string, input: FirewallInput) =>
-    api.put<unknown>(`${base(projectId)}/${name}`, input),
+    api.put<Operation>(`${base(projectId)}/${name}`, input),
   remove: (projectId: string, name: string) =>
-    api.del<unknown>(`${base(projectId)}/${name}`),
+    api.del<Operation>(`${base(projectId)}/${name}`),
 };

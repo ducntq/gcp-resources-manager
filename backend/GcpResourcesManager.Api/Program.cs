@@ -24,6 +24,7 @@ var api = app.MapGroup("/api");
 api.MapProjectEndpoints();
 api.MapVmEndpoints();
 api.MapFirewallEndpoints();
+api.MapOperationEndpoints();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
